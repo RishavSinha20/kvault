@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"kvault/store"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -12,12 +14,14 @@ type Handler struct {
 
 func NewHandler(s *store.Store) *Handler {
 	return &Handler{
-		store: s,
+		store: s,	
 	}
 }
 
 func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
+	vars := mux.Vars(r)
+	key := vars["key"]
+
 	value := r.URL.Query().Get("value")
 
 	if key == "" {
@@ -30,7 +34,8 @@ func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
+	vars := mux.Vars(r)
+	key := vars["key"]
 
 	if key == "" {
 		http.Error(w, "missing key", http.StatusBadRequest)
@@ -50,7 +55,8 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	key := r.URL.Query().Get("key")
+	vars := mux.Vars(r)
+	key := vars["key"]
 
 	if key == "" {
 		http.Error(w, "missing key", http.StatusBadRequest)
