@@ -11,25 +11,34 @@ import (
 type Handler struct {
 	store *store.Store
 }
+type PutRequest struct {
+	Value string `json:"value"`
+}
 
 func NewHandler(s *store.Store) *Handler {
 	return &Handler{
-		store: s,	
+		store: s,
 	}
 }
-
 func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	key := vars["key"]
-
-	value := r.URL.Query().Get("value")
 
 	if key == "" {
 		http.Error(w, "missing key", http.StatusBadRequest)
 		return
 	}
 
-	h.store.Put(key, value)
+	var req PutRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	h.store.Put(key, req.Value)
+
 	w.WriteHeader(http.StatusOK)
 }
 
