@@ -32,7 +32,6 @@ type ValueResponse struct {
 func NewHandler(s *store.Store) *Handler {
 	return &Handler{
 		store: s,
-		store: s,
 	}
 }
 
@@ -87,7 +86,6 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 
 	if key == "" {
 		writeError(w, http.StatusBadRequest, "missing key")
-		writeError(w, http.StatusBadRequest, "missing key")
 		return
 	}
 
@@ -95,12 +93,9 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 
 	if !ok {
 		writeError(w, http.StatusNotFound, "key not found")
-		writeError(w, http.StatusNotFound, "key not found")
 		return
 	}
 
-	writeJSON(w, http.StatusOK, ValueResponse{
-		Value: val,
 	writeJSON(w, http.StatusOK, ValueResponse{
 		Value: val,
 	})
@@ -112,7 +107,6 @@ func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 
 	if key == "" {
 		writeError(w, http.StatusBadRequest, "missing key")
-		writeError(w, http.StatusBadRequest, "missing key")
 		return
 	}
 
@@ -123,7 +117,6 @@ func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !ok {
-		writeError(w, http.StatusNotFound, "key not found")
 		writeError(w, http.StatusNotFound, "key not found")
 		return
 	}
