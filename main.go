@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/http"
 	"os"
@@ -8,10 +9,15 @@ import (
 	"github.com/gorilla/mux"
 
 	"kvault/api"
+	"kvault/replication"
 	"kvault/store"
 )
 
 func main() {
+	port := flag.String("port", "8080", "server port")
+	role := flag.String("role", "leader", "leader or follower")
+	flag.Parse()
+
 	err := os.MkdirAll("data", 0755)
 	if err != nil {
 		log.Fatal(err)
@@ -27,7 +33,16 @@ func main() {
 		log.Fatal(err)
 	}
 
-	h := api.NewHandler(s)
+	followers := []string{
+		"http://localhost:8081",
+		"http://localhost:8082",
+	}
+
+	replicator := replication.NewReplicator(followers)
+
+	isLeader := *role == "leader"
+
+	h := api.NewHandler(s, replicator, isLeader)
 
 	r := mux.NewRouter()
 
@@ -35,7 +50,9 @@ func main() {
 	r.HandleFunc("/store/{key}", h.GetHandler).Methods("GET")
 	r.HandleFunc("/store/{key}", h.DeleteHandler).Methods("DELETE")
 
-	log.Println("kvault server running on :8080")
+	r.HandleFunc("/internal/replicate", h.ReplicationHandler).Methods("POST")
 
-	log.Fatal(http.ListenAndServe(":8080", r))
+	log.Printf("kvault node running on :%s as %s", *port, *role)
+
+	log.Fatal(http.ListenAndServe(":"+*port, r))
 }

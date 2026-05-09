@@ -41,6 +41,15 @@ func (s *Store) Put(key, value string) error {
 	return nil
 }
 
+func (s *Store) ReplicatedPut(key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data[key] = value
+
+	return nil
+}
+
 func (s *Store) Get(key string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -67,10 +76,17 @@ func (s *Store) Delete(key string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-
 	delete(s.data, key)
+
 	return true, nil
 }
+func (s *Store) ReplicatedDelete(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.data, key)
+}
+
 func (s *Store) recover() error {
 	records, err := s.wal.ReadAll()
 	if err != nil {

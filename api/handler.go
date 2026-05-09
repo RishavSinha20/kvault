@@ -6,11 +6,14 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"kvault/replication"
 	"kvault/store"
 )
 
 type Handler struct {
-	store *store.Store
+	store      *store.Store
+	replicator *replication.Replicator
+	isLeader   bool
 }
 
 type PutRequest struct {
@@ -29,9 +32,15 @@ type ValueResponse struct {
 	Value string `json:"value"`
 }
 
-func NewHandler(s *store.Store) *Handler {
+func NewHandler(
+	s *store.Store,
+	r *replication.Replicator,
+	isLeader bool,
+) *Handler {
 	return &Handler{
-		store: s,
+		store:      s,
+		replicator: r,
+		isLeader:   isLeader,
 	}
 }
 
@@ -53,6 +62,11 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.isLeader {
+		writeError(w, http.StatusForbidden, "writes allowed only on leader")
+		return
+	}
+
 	vars := mux.Vars(r)
 	key := vars["key"]
 
@@ -72,6 +86,17 @@ func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
 	err = h.store.Put(key, req.Value)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to persist data")
+		return
+	}
+
+	err = h.replicator.Replicate(replication.ReplicationRequest{
+		Operation: "PUT",
+		Key:       key,
+		Value:     req.Value,
+	})
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "replication failed")
 		return
 	}
 
@@ -102,6 +127,11 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
+	if !h.isLeader {
+		writeError(w, http.StatusForbidden, "writes allowed only on leader")
+		return
+	}
+
 	vars := mux.Vars(r)
 	key := vars["key"]
 
@@ -121,7 +151,43 @@ func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	err = h.replicator.Replicate(replication.ReplicationRequest{
+		Operation: "DELETE",
+		Key:       key,
+	})
+
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "replication failed")
+		return
+	}
+
 	writeJSON(w, http.StatusOK, MessageResponse{
 		Message: "key deleted successfully",
+	})
+}
+
+func (h *Handler) ReplicationHandler(w http.ResponseWriter, r *http.Request) {
+	var req replication.ReplicationRequest
+
+	err := json.NewDecoder(r.Body).Decode(&req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid replication payload")
+		return
+	}
+
+	switch req.Operation {
+	case "PUT":
+		err = h.store.ReplicatedPut(req.Key, req.Value)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "replicated put failed")
+			return
+		}
+
+	case "DELETE":
+		h.store.ReplicatedDelete(req.Key)
+	}
+
+	writeJSON(w, http.StatusOK, MessageResponse{
+		Message: "replication applied",
 	})
 }
