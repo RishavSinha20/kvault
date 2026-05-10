@@ -33,16 +33,36 @@ func main() {
 		log.Fatal(err)
 	}
 
-	followers := []string{
+	nodeAddress := "http://localhost:" + *port
+
+	peers := []string{
+		"http://localhost:8080",
 		"http://localhost:8081",
 		"http://localhost:8082",
 	}
 
-	replicator := replication.NewReplicator(followers)
+	var filteredPeers []string
 
-	isLeader := *role == "leader"
+	for _, peer := range peers {
+		if peer != nodeAddress {
+			filteredPeers = append(filteredPeers, peer)
+		}
+	}
 
-	h := api.NewHandler(s, replicator, isLeader)
+	replicator := replication.NewReplicator(filteredPeers)
+
+	initialLeader := *role == "leader"
+
+	election := replication.NewElectionManager(
+		nodeAddress,
+		filteredPeers,
+		initialLeader,
+	)
+
+	election.StartHeartbeatSender()
+	election.StartElectionMonitor()
+
+	h := api.NewHandler(s, replicator, election)
 
 	r := mux.NewRouter()
 
@@ -51,6 +71,8 @@ func main() {
 	r.HandleFunc("/store/{key}", h.DeleteHandler).Methods("DELETE")
 
 	r.HandleFunc("/internal/replicate", h.ReplicationHandler).Methods("POST")
+
+	r.HandleFunc("/internal/heartbeat", h.HeartbeatHandler).Methods("POST")
 
 	log.Printf("kvault node running on :%s as %s", *port, *role)
 

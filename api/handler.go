@@ -13,7 +13,7 @@ import (
 type Handler struct {
 	store      *store.Store
 	replicator *replication.Replicator
-	isLeader   bool
+	election   *replication.ElectionManager
 }
 
 type PutRequest struct {
@@ -35,12 +35,12 @@ type ValueResponse struct {
 func NewHandler(
 	s *store.Store,
 	r *replication.Replicator,
-	isLeader bool,
+	e *replication.ElectionManager,
 ) *Handler {
 	return &Handler{
 		store:      s,
 		replicator: r,
-		isLeader:   isLeader,
+		election:   e,
 	}
 }
 
@@ -62,7 +62,7 @@ func writeError(w http.ResponseWriter, status int, message string) {
 }
 
 func (h *Handler) PutHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.isLeader {
+	if !h.election.IsLeader() {
 		writeError(w, http.StatusForbidden, "writes allowed only on leader")
 		return
 	}
@@ -127,7 +127,7 @@ func (h *Handler) GetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
-	if !h.isLeader {
+	if !h.election.IsLeader() {
 		writeError(w, http.StatusForbidden, "writes allowed only on leader")
 		return
 	}
@@ -189,5 +189,15 @@ func (h *Handler) ReplicationHandler(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, MessageResponse{
 		Message: "replication applied",
+	})
+}
+
+func (h *Handler) HeartbeatHandler(w http.ResponseWriter, r *http.Request) {
+	h.election.ReceiveHeartbeat()
+
+	h.election.BecomeFollower()
+
+	writeJSON(w, http.StatusOK, MessageResponse{
+		Message: "heartbeat received",
 	})
 }
