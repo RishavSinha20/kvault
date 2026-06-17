@@ -513,39 +513,4 @@ Potential enhancements include:
 
 ---
 
-# Key Learnings
 
-Building KVault provided practical experience with:
-
-- Concurrent programming in Go
-- Storage engine fundamentals
-- Write-Ahead Logging
-- Crash recovery mechanisms
-- Distributed replication
-- Failure detection
-- Leader election
-- Fault tolerance
-- Distributed systems design
-- Backend architecture patterns
-
----
-
-# Resume Bullet
-
-```text
-Designed and implemented a fault-tolerant distributed key-value store in Go featuring WAL-based durability, crash recovery, leader-follower replication, heartbeat-driven leader election, and automatic failover handling.
-```
-
----
-
-# License
-
-This project is licensed under the MIT License.
-
----
-
-## Author
-
-**Rishav Sinha**
-
-Backend Engineer | Golang Developer | Distributed Systems Enthusiast
